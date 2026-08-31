@@ -38,3 +38,10 @@ h1, h2, h3, p { margin: 0; } h1 { font-size: 31px; letter-spacing: -.05em; } h2 
 .muscle-bar-row strong { font-size: 12px; }
 .bar-track { height: 8px; overflow: hidden; border-radius: 999px; background: #e7e8df; }
 .bar-track span { display: block; height: 100%; border-radius: inherit; background: #a8c957; }
+
+.backup-card { display: grid; gap: 14px; margin: 14px 0; padding: 18px; border: 1px solid #e4e4dc; border-radius: 20px; background: rgba(255, 255, 250, .68); }
+.backup-card h3 { margin-bottom: 8px; }
+.backup-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; }
+.backup-actions .secondary-button { padding: 10px 13px; }
+.backup-message { color: #68783b; font-size: 12px; font-weight: 800; }
+.hidden-input { display: none; }
