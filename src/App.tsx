@@ -49,6 +49,17 @@ function App() {
   );
   const viewedWorkout = data.workouts.find((workout) => workout.id === viewingWorkoutId);
 
+  const previousExerciseFor = (exerciseId: string, currentWorkoutId: string) => {
+    const previousWorkouts = [...data.workouts]
+      .filter((workout) => workout.status === "completed" && workout.id !== currentWorkoutId)
+      .sort((a, b) => (b.completedAt ?? b.startedAt).localeCompare(a.completedAt ?? a.startedAt));
+    for (const workout of previousWorkouts) {
+      const exercise = workout.exercises.find((item) => item.exerciseId === exerciseId);
+      if (exercise) return exercise;
+    }
+    return undefined;
+  };
+
   const updateWorkout = (workoutId: string, update: (workout: Workout) => Workout) => {
     setData((previous) => ({ ...previous, workouts: previous.workouts.map((workout) =>
       workout.id === workoutId ? update(workout) : workout) }));
@@ -182,10 +193,19 @@ function App() {
       <div className="exercise-picker"><select aria-label="Выберите упражнение" value={selectedExerciseId} onChange={(event) => setSelectedExerciseId(event.target.value)}><option value="">Выбрать упражнение</option>{data.exercises.map((exercise) => <option key={exercise.id} value={exercise.id}>{exercise.name}</option>)}</select><button className="secondary-button" type="button" onClick={addExercise} disabled={!selectedExerciseId}>Добавить</button></div>
       {!isEditingCompleted && <button className="quick-add-button" type="button" onClick={() => openNewExercise("workout")}>＋ Быстро создать новое упражнение</button>}
       {workoutInEditor.exercises.length === 0 && <div className="compact-empty"><strong>Добавьте упражнение</strong><span className="muted">Тренировку можно завершить даже пустой.</span></div>}
-      {workoutInEditor.exercises.map((exercise, index) => <article className="workout-exercise" key={exercise.id}>
+      {workoutInEditor.exercises.map((exercise, index) => {
+      const previousExercise = previousExerciseFor(exercise.exerciseId, workoutInEditor.id);
+      return <article className="workout-exercise" key={exercise.id}>
         <div className="exercise-header"><div><span className="exercise-number">{index + 1}</span><div><strong>{exercise.exerciseNameSnapshot}</strong><span>{exercise.primaryMuscleSnapshot}</span></div></div><div className="icon-actions"><button type="button" aria-label="Поднять упражнение" onClick={() => moveExercise(exercise.id, -1)} disabled={index === 0}>↑</button><button type="button" aria-label="Опустить упражнение" onClick={() => moveExercise(exercise.id, 1)} disabled={index === workoutInEditor.exercises.length - 1}>↓</button><button type="button" aria-label="Удалить упражнение" onClick={() => removeExercise(exercise.id)}>×</button></div></div>
-        <div className="set-list">{exercise.sets.map((item, setIndex) => <div className={item.completed ? "set-row completed" : "set-row"} key={item.id}><span className="set-number">{setIndex + 1}</span><input aria-label={`Вес, подход ${setIndex + 1}`} type="number" min="0" step="0.5" value={item.weight} onChange={(event) => updateSet(exercise.id, item.id, { weight: Number(event.target.value) || 0 })} /><span className="input-suffix">кг</span><input aria-label={`Повторения, подход ${setIndex + 1}`} type="number" min="0" step="1" value={item.repetitions} onChange={(event) => updateSet(exercise.id, item.id, { repetitions: Number(event.target.value) || 0 })} /><span className="input-suffix">раз</span><input aria-label={`RIR, подход ${setIndex + 1}`} className="rir-input" type="number" min="0" step="1" placeholder="RIR" value={item.rir ?? ""} onChange={(event) => updateSet(exercise.id, item.id, { rir: event.target.value === "" ? undefined : Number(event.target.value) })} /><button className="check-button" type="button" aria-label={item.completed ? "Отменить выполнение" : "Отметить выполненным"} onClick={() => updateSet(exercise.id, item.id, { completed: !item.completed })}>{item.completed ? "✓" : "○"}</button><button className="remove-set" type="button" aria-label="Удалить подход" onClick={() => removeSet(exercise.id, item.id)}>×</button></div>)}</div><button className="add-set-button" type="button" onClick={() => addSet(exercise.id)}>+ Добавить подход</button>
-      </article>)}
+        <div className="set-list">{exercise.sets.map((item, setIndex) => {
+          const previousSet = previousExercise?.sets[setIndex];
+          return <div className="set-entry" key={item.id}>
+            <div className={item.completed ? "set-row completed" : "set-row"}><span className="set-number">{setIndex + 1}</span><input aria-label={`Вес, подход ${setIndex + 1}`} type="number" min="0" step="0.5" value={item.weight} onChange={(event) => updateSet(exercise.id, item.id, { weight: Number(event.target.value) || 0 })} /><span className="input-suffix">кг</span><input aria-label={`Повторения, подход ${setIndex + 1}`} type="number" min="0" step="1" value={item.repetitions} onChange={(event) => updateSet(exercise.id, item.id, { repetitions: Number(event.target.value) || 0 })} /><span className="input-suffix">раз</span><input aria-label={`RIR, подход ${setIndex + 1}`} className="rir-input" type="number" min="0" step="1" placeholder="RIR" value={item.rir ?? ""} onChange={(event) => updateSet(exercise.id, item.id, { rir: event.target.value === "" ? undefined : Number(event.target.value) })} /><button className="check-button" type="button" aria-label={item.completed ? "Отменить выполнение" : "Отметить выполненным"} onClick={() => updateSet(exercise.id, item.id, { completed: !item.completed })}>{item.completed ? "✓" : "○"}</button><button className="remove-set" type="button" aria-label="Удалить подход" onClick={() => removeSet(exercise.id, item.id)}>×</button></div>
+            {previousSet && <span className="past-result">Прошлый раз: {previousSet.weight} кг × {previousSet.repetitions}{previousSet.rir !== undefined ? ` · RIR ${previousSet.rir}` : ""}{previousSet.completed ? " ✓" : ""}</span>}
+          </div>;
+        })}</div><button className="add-set-button" type="button" onClick={() => addSet(exercise.id)}>+ Добавить подход</button>
+      </article>;
+      })}
       <button className="finish-button" type="button" onClick={finishWorkout}>{isEditingCompleted ? "Сохранить изменения" : "Завершить тренировку"}</button>
       {renderExerciseForm()}
     </div>;
