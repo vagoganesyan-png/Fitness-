@@ -19,3 +19,22 @@ h1, h2, h3, p { margin: 0; } h1 { font-size: 31px; letter-spacing: -.05em; } h2 
 
 .set-entry { display: grid; gap: 4px; }
 .past-result { padding-left: 21px; color: #96978c; font-size: 11px; }
+
+.stats-panel { margin-top: 20px; }
+.period-picker { display: flex; flex-wrap: wrap; gap: 7px; }
+.period-button { padding: 8px 10px; border: 1px solid #dedfd5; border-radius: 999px; color: #77786e; background: #fff; font-size: 12px; cursor: pointer; }
+.period-button.active { border-color: #c9d99a; color: #53642c; background: #e9f2ce; font-weight: 800; }
+.date-picker { display: flex; gap: 8px; margin-top: 14px; }
+.date-picker label { flex: 1; color: #77786e; font-size: 11px; }
+.date-picker input { display: block; width: 100%; margin-top: 5px; padding: 9px; border: 1px solid #dedfd5; border-radius: 9px; background: #fff; }
+.volume-card { display: grid; gap: 8px; margin-top: 18px; padding: 20px; border-radius: 16px; color: #f6f6ef; background: #20211d; }
+.volume-card strong { font-size: 36px; letter-spacing: -.05em; }
+.comparison { font-size: 12px; font-weight: 800; }
+.comparison.positive { color: #cde86b; } .comparison.negative { color: #f0a5a5; } .comparison.neutral { color: #c4c5bc; }
+.stats-section { margin-top: 24px; }
+.muscle-bars { display: grid; gap: 16px; margin-top: 18px; }
+.muscle-bar-row { display: grid; gap: 7px; }
+.muscle-bar-row > div:first-child { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.muscle-bar-row strong { font-size: 12px; }
+.bar-track { height: 8px; overflow: hidden; border-radius: 999px; background: #e7e8df; }
+.bar-track span { display: block; height: 100%; border-radius: inherit; background: #a8c957; }

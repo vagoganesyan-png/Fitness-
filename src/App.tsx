@@ -31,6 +31,9 @@ function App() {
   const [editingExerciseId, setEditingExerciseId] = useState<string | null>(null);
   const [showExerciseForm, setShowExerciseForm] = useState(false);
   const [formOrigin, setFormOrigin] = useState<"directory" | "workout">("directory");
+  const [statsPeriod, setStatsPeriod] = useState<"week" | "month" | "3months" | "6months" | "year" | "all" | "custom">("month");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
 
   useEffect(() => { saveFitnessData(data); }, [data]);
 
@@ -48,6 +51,58 @@ function App() {
     [data.workouts],
   );
   const viewedWorkout = data.workouts.find((workout) => workout.id === viewingWorkoutId);
+
+  const getStatsRanges = () => {
+    const now = new Date();
+    const end = new Date(now);
+    let start = new Date(now);
+    if (statsPeriod === "week") start.setDate(start.getDate() - 6);
+    if (statsPeriod === "month") start.setDate(start.getDate() - 29);
+    if (statsPeriod === "3months") start.setDate(start.getDate() - 89);
+    if (statsPeriod === "6months") start.setDate(start.getDate() - 179);
+    if (statsPeriod === "year") start.setDate(start.getDate() - 364);
+    if (statsPeriod === "all") {
+      const dates = data.workouts.filter((workout) => workout.status === "completed").map((workout) => new Date(workout.completedAt ?? workout.startedAt).getTime());
+      start = dates.length ? new Date(Math.min(...dates)) : new Date(now);
+    }
+    if (statsPeriod === "custom" && customStart) start = new Date(`${customStart}T00:00:00`);
+    if (statsPeriod === "custom" && customEnd) end.setTime(new Date(`${customEnd}T23:59:59.999`).getTime());
+    const duration = Math.max(1, end.getTime() - start.getTime() + 1);
+    return { current: { start, end }, previous: { start: new Date(start.getTime() - duration), end: new Date(start.getTime() - 1) } };
+  };
+
+  const volumeForRange = (range: { start: Date; end: Date }) => {
+    const byMuscle: Record<string, number> = {};
+    let total = 0;
+    data.workouts.filter((workout) => {
+      if (workout.status !== "completed") return false;
+      const date = new Date(workout.completedAt ?? workout.startedAt);
+      return date >= range.start && date <= range.end;
+    }).forEach((workout) => workout.exercises.forEach((exercise) => exercise.sets.forEach((item) => {
+      if (!item.completed || item.weight <= 0 || item.repetitions <= 0) return;
+      const volume = item.weight * item.repetitions;
+      total += volume;
+      byMuscle[exercise.primaryMuscleSnapshot] = (byMuscle[exercise.primaryMuscleSnapshot] ?? 0) + volume;
+    })));
+    return { total, byMuscle };
+  };
+
+  const renderStats = () => {
+    const ranges = getStatsRanges();
+    const currentStats = volumeForRange(ranges.current);
+    const previousStats = volumeForRange(ranges.previous);
+    const delta = previousStats.total > 0 ? ((currentStats.total - previousStats.total) / previousStats.total) * 100 : null;
+    const muscles = Object.entries(currentStats.byMuscle).sort((a, b) => b[1] - a[1]);
+    const periodLabels = { week: "Неделя", month: "Месяц", "3months": "3 месяца", "6months": "6 месяцев", year: "Год", all: "Всё время", custom: "Свои даты" };
+    return <div className="stats-panel">
+      <div className="period-picker">{Object.entries(periodLabels).map(([key, label]) => <button className={statsPeriod === key ? "period-button active" : "period-button"} type="button" key={key} onClick={() => setStatsPeriod(key as typeof statsPeriod)}>{label}</button>)}</div>
+      {statsPeriod === "custom" && <div className="date-picker"><label>С<input type="date" value={customStart} onChange={(event) => setCustomStart(event.target.value)} /></label><label>По<input type="date" value={customEnd} onChange={(event) => setCustomEnd(event.target.value)} /></label></div>}
+      <div className="volume-card"><span className="eyebrow">ОБЩИЙ ОБЪЁМ · {periodLabels[statsPeriod].toUpperCase()}</span><strong>{Math.round(currentStats.total).toLocaleString("ru-RU")} кг</strong><span className={delta === null ? "comparison neutral" : delta >= 0 ? "comparison positive" : "comparison negative"}>{delta === null ? "Нет данных для сравнения" : `${delta >= 0 ? "+" : ""}${delta.toFixed(1)}% к предыдущему периоду`}</span></div>
+      <div className="stats-section"><div className="section-heading"><div><p className="eyebrow">РАСПРЕДЕЛЕНИЕ</p><h3>По группам мышц</h3></div></div>
+        {muscles.length === 0 ? <div className="compact-empty"><strong>Нет выполненных подходов</strong><span className="muted">Отметьте подход выполненным, чтобы он попал в объём.</span></div> : <div className="muscle-bars">{muscles.map(([muscle, volume]) => <div className="muscle-bar-row" key={muscle}><div><span>{muscle}</span><strong>{Math.round(volume).toLocaleString("ru-RU")} кг</strong></div><div className="bar-track"><span style={{ width: `${Math.max(4, (volume / muscles[0][1]) * 100)}%` }} /></div></div>)}</div>}
+      </div>
+    </div>;
+  };
 
   const previousExerciseFor = (exerciseId: string, currentWorkoutId: string) => {
     const previousWorkouts = [...data.workouts]
@@ -233,7 +288,7 @@ function App() {
         {activeTab === "Главная" && <div className="empty-state"><span className="empty-icon">◎</span><strong>{lastWorkout ? "Последняя тренировка сохранена" : "Тренировок пока нет"}</strong><p className="muted">{lastWorkout ? "Откройте историю, чтобы посмотреть детали." : "Начните тренировку, чтобы появилась первая запись."}</p></div>}
         {activeTab === "История" && renderHistory()}
         {activeTab === "Упражнения" && <><div className="exercise-directory">{data.exercises.map((exercise) => <div className="directory-row" key={exercise.id}><div><strong>{exercise.name}</strong><span>{exercise.primaryMuscle}{exercise.secondaryMuscles.length ? ` · дополнительно: ${exercise.secondaryMuscles.join(", ")}` : ""}</span></div><div className="row-actions"><button type="button" onClick={() => openEditExercise(exercise)}>Изменить</button><button className="danger-text" type="button" onClick={() => deleteExercise(exercise.id)}>Удалить</button></div></div>)}</div>{renderExerciseForm()}</>}
-        {activeTab === "Статистика" && <div className="empty-state"><span className="empty-icon">↗</span><strong>Статистика пока пуста</strong><p className="muted">Расчёт объёма будет добавлен на Этапе 6.</p></div>}
+        {activeTab === "Статистика" && renderStats()}
       </section>
     </>}
     <nav className="bottom-nav" aria-label="Основная навигация">{navigation.map((item) => <button className={activeTab === item ? "nav-item active" : "nav-item"} key={item} type="button" onClick={() => setActiveTab(item)}><span className="nav-mark" />{item}</button>)}</nav>
